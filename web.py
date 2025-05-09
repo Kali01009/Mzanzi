@@ -1,6 +1,9 @@
 from flask import Flask, render_template_string
 from main import get_signals
 
+from flask import jsonify
+
+
 app = Flask(__name__)
 
 HTML_TEMPLATE = """
