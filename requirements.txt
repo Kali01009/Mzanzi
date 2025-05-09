@@ -1,5 +1,3 @@
 websocket-client
 pandas
-win10toast
-pywin32
 requests
