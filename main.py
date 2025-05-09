@@ -50,6 +50,17 @@ def on_open(ws):
     }
     ws.send(json.dumps(subscribe_message))
 
+# main.py
+
+def get_signals():
+    # Example signals data
+    signals = [
+        {"symbol": "BTCUSDT", "action": "BUY", "price": 27500},
+        {"symbol": "ETHUSDT", "action": "SELL", "price": 1850}
+    ]
+    return signals
+
+
 # Run WebSocket
 if __name__ == "__main__":
     socket = "wss://ws.binaryws.com/websockets/v3?app_id=1089"
