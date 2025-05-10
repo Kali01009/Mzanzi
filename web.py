@@ -1,8 +1,5 @@
 from flask import Flask, render_template_string
-from main import get_signals
-
-from flask import jsonify
-
+from main import get_signal_list
 
 app = Flask(__name__)
 
@@ -31,7 +28,7 @@ HTML_TEMPLATE = """
 
 @app.route('/')
 def home():
-    signals = get_signals()
+    signals = get_signal_list()
     return render_template_string(HTML_TEMPLATE, signals=signals)
 
 if __name__ == '__main__':
