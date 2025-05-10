@@ -5,9 +5,9 @@ import pandas as pd
 import time
 import logging
 
-# Telegram bot token and chat ID (replace with your actual chat ID)
-BOT_TOKEN = "7819951392:AAFkYd9-sblexjXNqgIfhbWAIC1Lr6NmPpo"  # Your existing bot token
-CHAT_ID = "6734231237"  # Your existing chat ID
+# Telegram bot token and chat ID (replace with your actual bot token and chat ID)
+BOT_TOKEN = "7819951392:AAFkYd9-sblexjXNqgIfhbWAIC1Lr6NmPpo"
+CHAT_ID = "6734231237"
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -70,10 +70,8 @@ def reconnect_websocket():
     time.sleep(5)
     ws.run_forever()
 
-# main.py
-
+# Example function (not used in this version, just kept for future logic extension)
 def get_signals():
-    # Example signals data
     signals = [
         {"symbol": "BTCUSDT", "action": "BUY", "price": 27500},
         {"symbol": "ETHUSDT", "action": "SELL", "price": 1850}
@@ -82,6 +80,8 @@ def get_signals():
 
 # Run WebSocket
 if __name__ == "__main__":
+    send_telegram_message("Working")  # Send 'Working' when the script starts
+
     socket = "wss://ws.binaryws.com/websockets/v3?app_id=1089"
     
     ws = websocket.WebSocketApp(socket,
