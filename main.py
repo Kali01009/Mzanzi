@@ -12,8 +12,9 @@ CHAT_ID = "6734231237"
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 
-# Global variable to store the latest candle data
+# Global variables
 candle_data = []
+live_signals = []
 
 # Function to send Telegram message
 def send_telegram_message(message):
@@ -28,7 +29,7 @@ def send_telegram_message(message):
     except Exception as e:
         logging.error(f"Failed to send message: {e}")
 
-# WebSocket callback handlers
+# WebSocket callbacks
 def on_message(ws, message):
     global candle_data
     try:
@@ -37,9 +38,10 @@ def on_message(ws, message):
             candles = data["candles"]
             df = pd.DataFrame(candles, columns=["timestamp", "open", "high", "low", "close"])
             df["timestamp"] = pd.to_datetime(df["timestamp"], unit="s")
-            candle_data = df  # Update global candle data
+            candle_data = df
             signal = get_signals(df)
             if signal:
+                live_signals.append(signal)
                 send_telegram_message(signal)
     except Exception as e:
         logging.error(f"Error processing message: {e}")
@@ -67,30 +69,30 @@ def reconnect_websocket():
     time.sleep(5)
     ws.run_forever()
 
-# Function to generate signals based on breakout strategy
-def get_signals(df):
+# Signal generation logic
+def get_signals(df=None):
     if df is not None and len(df) >= 2:
         latest = df.iloc[-1]
         previous = df.iloc[-2]
-
         if latest["high"] > previous["high"]:
-            return "🚀 BUY Signal: Breakout UP detected!"
+            return f"🚀 BUY Signal @ {latest['high']} (Breakout UP)"
         elif latest["low"] < previous["low"]:
-            return "📉 SELL Signal: Breakout DOWN detected!"
+            return f"📉 SELL Signal @ {latest['low']} (Breakout DOWN)"
     return None
 
-# Run WebSocket
+# Method for Flask to call
+def get_signal_list():
+    return live_signals[-10:]  # Return last 10 signals for dashboard
+
+# Start WebSocket
 if __name__ == "__main__":
-    send_telegram_message("Working")  # Notify when script starts
-
+    send_telegram_message("Working")  # Notify on start
     socket = "wss://ws.binaryws.com/websockets/v3?app_id=1089"
-
     ws = websocket.WebSocketApp(socket,
                                  on_open=on_open,
                                  on_message=on_message,
                                  on_error=on_error,
                                  on_close=on_close)
-
     while True:
         try:
             ws.run_forever()
