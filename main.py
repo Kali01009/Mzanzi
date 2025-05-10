@@ -5,12 +5,15 @@ import pandas as pd
 import time
 import logging
 
-# Telegram bot token and chat ID (replace with your actual bot token and chat ID)
+# Telegram bot token and chat ID
 BOT_TOKEN = "7819951392:AAFkYd9-sblexjXNqgIfhbWAIC1Lr6NmPpo"
 CHAT_ID = "6734231237"
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
+
+# Global variable to store the latest candle data
+candle_data = []
 
 # Function to send Telegram message
 def send_telegram_message(message):
@@ -27,21 +30,17 @@ def send_telegram_message(message):
 
 # WebSocket callback handlers
 def on_message(ws, message):
+    global candle_data
     try:
         data = json.loads(message)
         if "candles" in data:
             candles = data["candles"]
             df = pd.DataFrame(candles, columns=["timestamp", "open", "high", "low", "close"])
             df["timestamp"] = pd.to_datetime(df["timestamp"], unit="s")
-
-            latest = df.iloc[-1]
-            previous = df.iloc[-2]
-
-            # Simple breakout check
-            if latest["high"] > previous["high"]:
-                send_telegram_message("🚀 Breakout UP Confirmed!")
-            elif latest["low"] < previous["low"]:
-                send_telegram_message("📉 Breakout DOWN Confirmed!")
+            candle_data = df  # Update global candle data
+            signal = get_signals(df)
+            if signal:
+                send_telegram_message(signal)
     except Exception as e:
         logging.error(f"Error processing message: {e}")
 
@@ -53,9 +52,7 @@ def on_close(ws, close_status_code, close_msg):
 
 def on_open(ws):
     logging.info("WebSocket connection opened")
-    # Send initial message to Telegram when WebSocket starts
     send_telegram_message("WebSocket connection established! 🚀")
-
     subscribe_message = {
         "ticks_history": "R_100",
         "style": "candles",
@@ -70,27 +67,30 @@ def reconnect_websocket():
     time.sleep(5)
     ws.run_forever()
 
-# Example function (not used in this version, just kept for future logic extension)
-def get_signals():
-    signals = [
-        {"symbol": "BTCUSDT", "action": "BUY", "price": 27500},
-        {"symbol": "ETHUSDT", "action": "SELL", "price": 1850}
-    ]
-    return signals
+# Function to generate signals based on breakout strategy
+def get_signals(df):
+    if df is not None and len(df) >= 2:
+        latest = df.iloc[-1]
+        previous = df.iloc[-2]
+
+        if latest["high"] > previous["high"]:
+            return "🚀 BUY Signal: Breakout UP detected!"
+        elif latest["low"] < previous["low"]:
+            return "📉 SELL Signal: Breakout DOWN detected!"
+    return None
 
 # Run WebSocket
 if __name__ == "__main__":
-    send_telegram_message("Working")  # Send 'Working' when the script starts
+    send_telegram_message("Working")  # Notify when script starts
 
     socket = "wss://ws.binaryws.com/websockets/v3?app_id=1089"
-    
+
     ws = websocket.WebSocketApp(socket,
                                  on_open=on_open,
                                  on_message=on_message,
                                  on_error=on_error,
                                  on_close=on_close)
-    
-    # Set the WebSocket to reconnect if the connection is closed
+
     while True:
         try:
             ws.run_forever()
