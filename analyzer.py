@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import talib
 import matplotlib.pyplot as plt
 
 def draw_trendline(data, timeframe='15T'):
@@ -25,6 +24,7 @@ def detect_patterns(data):
     """
     Detect chart patterns like Head & Shoulders, Double/Triple Tops/Bottoms
     """
+    # Simple check for Head & Shoulders (example: 3 peaks with the middle higher)
     patterns = []
     for i in range(2, len(data)-2):
         if (data['High'][i] > data['High'][i-1] and data['High'][i] > data['High'][i+1]
@@ -48,39 +48,21 @@ def check_for_breakouts(data):
     
     return breakouts
 
-def analyze_selected_indices(selected_indices, market_data):
+def analyze_selected_indices(selected_indices, data):
     """
     Analyze the selected indices and look for signals like reversal at trendline,
     breakouts and confirmations.
     """
-    analysis_results = {}
     for index in selected_indices:
-        data = pd.DataFrame(market_data)  # Convert market data to pandas DataFrame
-        
         # Analyze the 15-minute timeframe (or higher)
         touches = draw_trendline(data)
         patterns = detect_patterns(data)
         breakouts = check_for_breakouts(data)
         
-        # Store the results in the dictionary
-        analysis_results[index] = {
-            'Touches': touches,
-            'Patterns': patterns,
-            'Breakouts': breakouts
-        }
-        
-        # Optionally, create a plot to visualize detected trendlines and breakouts
-        plt.figure(figsize=(10, 6))
-        plt.plot(data['Close'], label=f'{index} Close Price', color='blue')
-        
-        if touches:
-            plt.scatter(touches, data['Close'][touches], color='red', label='Touches', zorder=5)
-        if breakouts:
-            plt.scatter(breakouts, data['Close'][breakouts], color='green', label='Breakouts', zorder=5)
-        
-        plt.title(f"Analysis for {index}")
-        plt.legend()
-        plt.grid(True)
-        plt.savefig(f"static/{index}_analysis.png")
-        
-    return analysis_results
+        # Send results via Telegram (or display them)
+        print(f"Analysis for {index}:")
+        print(f"Touches: {touches}")
+        print(f"Detected Patterns: {patterns}")
+        print(f"Breakouts: {breakouts}")
+
+    return
