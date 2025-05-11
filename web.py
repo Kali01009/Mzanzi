@@ -1,5 +1,6 @@
-from flask import Flask, render_template_string, request, redirect, url_for
-from main import get_signal_list, send_telegram_message, analyze_selected_indices
+from flask import Flask, render_template_string, request, redirect
+from analyzer import analyze_selected_indices
+from main import send_telegram_message
 
 app = Flask(__name__)
 
@@ -12,81 +13,88 @@ HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Signal Dashboard</title>
+    <title>Volatility Signal Dashboard</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 40px; background: #f4f4f4; }
-        h1, h2 { color: #333; }
-        ul { list-style: none; padding: 0; }
-        li { background: #fff; margin: 10px 0; padding: 10px; border-left: 5px solid #6a1b9a; }
-        form { margin-top: 30px; }
-        button {
-            background-color: #6a1b9a;
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(to right, #6a11cb, #2575fc);
+            margin: 0;
+            padding: 0;
             color: white;
-            padding: 10px 20px;
+        }
+        .container {
+            max-width: 700px;
+            margin: 80px auto;
+            background: #ffffff0d;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.3);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            background: #ffffff1a;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+        }
+        input[type="checkbox"] {
+            margin-right: 10px;
+            transform: scale(1.3);
+        }
+        .btn {
+            background: #ffffff;
+            color: #2575fc;
             border: none;
+            padding: 12px 20px;
+            margin-top: 25px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 8px;
             cursor: pointer;
-            font-size: 16px;
+            transition: background 0.3s ease;
         }
-        button:hover {
-            background-color: #8e24aa;
-        }
-        .checkboxes { margin-bottom: 20px; }
-        .checkboxes label {
-            display: inline-block;
-            margin: 5px 15px 5px 0;
-            background: #fff;
-            padding: 8px 12px;
-            border: 1px solid #ccc;
-            border-left: 5px solid #6a1b9a;
+        .btn:hover {
+            background: #ddd;
         }
     </style>
 </head>
 <body>
-    <h1>Live Signals</h1>
-    <ul>
-        {% for signal in signals %}
-            <li>{{ signal }}</li>
-        {% endfor %}
-    </ul>
-
-    <form action="{{ url_for('send_hello') }}" method="post">
-        <button type="submit">Send Hello to Telegram</button>
-    </form>
-
-    <h2>Select Indices to Analyze</h2>
-    <form action="{{ url_for('start_analysis') }}" method="post">
-        <div class="checkboxes">
+    <div class="container">
+        <h1>📊 Volatility Index Analyzer</h1>
+        <form method="POST" action="/analyze">
             {% for index in indices %}
-                <label>
-                    <input type="checkbox" name="selected_indices" value="{{ index }}"> {{ index }}
-                </label>
+                <label><input type="checkbox" name="selected_indices" value="{{ index }}"> {{ index }}</label>
             {% endfor %}
-        </div>
-        <button type="submit">Start Analysis</button>
-    </form>
+            <button type="submit" class="btn">🚀 Start Analysis</button>
+        </form>
+    </div>
 </body>
 </html>
 """
 
 @app.route('/')
-def home():
-    signals = get_signal_list()
-    return render_template_string(HTML_TEMPLATE, signals=signals, indices=VOLATILITY_INDICES)
+def index():
+    return render_template_string(HTML_TEMPLATE, indices=VOLATILITY_INDICES)
 
-@app.route('/send-hello', methods=['POST'])
-def send_hello():
-    send_telegram_message("hello")
-    return redirect(url_for('home'))
-
-@app.route('/start-analysis', methods=['POST'])
-def start_analysis():
-    selected_indices = request.form.getlist('selected_indices')
-    if selected_indices:
-        analyze_selected_indices(selected_indices)
-        send_telegram_message(f"Started analysis for: {', '.join(selected_indices)}")
-    else:
-        send_telegram_message("No indices selected for analysis.")
-    return redirect(url_for('home'))
+@app.route('/analyze', methods=['POST'])
+def analyze():
+    selected = request.form.getlist('selected_indices')
+    if not selected:
+        send_telegram_message("⚠️ No indices selected for analysis.")
+        return redirect('/')
+    
+    send_telegram_message(f"🟢 Starting analysis for: {', '.join(selected)}")
+    analyze_selected_indices(selected)
+    return redirect('/')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
