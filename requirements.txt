@@ -1,6 +1,5 @@
 requests
 websocket-client
 pandas
-talib
 flask
 matplotlib
