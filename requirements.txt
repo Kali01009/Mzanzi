@@ -1,4 +1,6 @@
-Flask
+requests
 websocket-client
 pandas
-requests
+talib
+flask
+matplotlib
