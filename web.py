@@ -4,9 +4,10 @@ from main import send_telegram_message
 
 app = Flask(__name__)
 
+# List of volatility indices with proper names
 VOLATILITY_INDICES = [
-    "R_10", "R_25", "R_50", "R_75", "R_100",
-    "R_10_1s", "R_25_1s", "R_50_1s", "R_75_1s", "R_100_1s"
+    "Volatility_10", "Volatility_25", "Volatility_50", "Volatility_75", "Volatility_100",
+    "Volatility_10_1s", "Volatility_25_1s", "Volatility_50_1s", "Volatility_75_1s", "Volatility_100_1s"
 ]
 
 HTML_TEMPLATE = """
