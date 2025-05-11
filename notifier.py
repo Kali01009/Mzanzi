@@ -1,8 +1,8 @@
 import requests
 
 # ✅ Replace these with your actual values
-TELEGRAM_TOKEN = "your_actual_bot_token"
-TELEGRAM_CHAT_ID = "your_actual_chat_id"
+TELEGRAM_TOKEN = "7819951392:AAFkYd9-sblexjXNqgIfhbWAIC1Lr6NmPpo"
+TELEGRAM_CHAT_ID = "6734231237"
 
 def send_telegram_message(message: str):
     """Send formatted alert to Telegram"""
