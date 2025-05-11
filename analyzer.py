@@ -1,68 +1,63 @@
-import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+from notifier import send_telegram_message
 
-def draw_trendline(data, timeframe='15T'):
-    """
-    Function to draw a trendline and detect breakout.
-    data: Historical price data
-    timeframe: Timeframe for analysis (e.g., '15T' for 15-minutes)
-    """
-    # Identify peaks and troughs for trendlines (simple approach)
-    data['High'] = data['High'].rolling(window=5).max()  # Local maxima (resistance)
-    data['Low'] = data['Low'].rolling(window=5).min()    # Local minima (support)
-    
-    # Identify points where the price touches the trendline
-    touches = []
-    for i in range(len(data)):
-        if data['Close'][i] in [data['High'][i], data['Low'][i]]:
-            touches.append(data.index[i])  # Mark price touches
-    
-    return touches
+def identify_levels(data):
+    data['Support'] = data['Low'].rolling(window=10).min()
+    data['Resistance'] = data['High'].rolling(window=10).max()
+    return data
 
-def detect_patterns(data):
-    """
-    Detect chart patterns like Head & Shoulders, Double/Triple Tops/Bottoms
-    """
-    # Simple check for Head & Shoulders (example: 3 peaks with the middle higher)
-    patterns = []
-    for i in range(2, len(data)-2):
-        if (data['High'][i] > data['High'][i-1] and data['High'][i] > data['High'][i+1]
-            and data['High'][i-1] < data['High'][i-2] and data['High'][i+1] < data['High'][i+2]):
-            patterns.append('Head & Shoulders')
-
-    return patterns
-
-def check_for_breakouts(data):
-    """
-    Check for breakouts above trendline and retests on lower timeframes.
-    """
-    breakouts = []
-    for i in range(1, len(data)):
-        if data['Close'][i] > data['High'][i-1]:  # Price breaks above resistance
-            breakouts.append(data.index[i])  # Mark breakout points
-            
-            # Check for retest on 5-min and 1-min (example logic, real implementation would use lower timeframes)
-            if data['Close'][i-1] < data['High'][i-2] and data['Close'][i] > data['High'][i-1]:
-                breakouts.append('Breakout confirmed')
-    
-    return breakouts
+def is_consolidating(data, window=10, threshold=0.02):
+    """Detects if price is consolidating within a tight range"""
+    recent = data.tail(window)
+    max_close = recent['Close'].max()
+    min_close = recent['Close'].min()
+    return (max_close - min_close) / min_close < threshold
 
 def analyze_selected_indices(selected_indices, data):
-    """
-    Analyze the selected indices and look for signals like reversal at trendline,
-    breakouts and confirmations.
-    """
-    for index in selected_indices:
-        # Analyze the 15-minute timeframe (or higher)
-        touches = draw_trendline(data)
-        patterns = detect_patterns(data)
-        breakouts = check_for_breakouts(data)
-        
-        # Send results via Telegram (or display them)
-        print(f"Analysis for {index}:")
-        print(f"Touches: {touches}")
-        print(f"Detected Patterns: {patterns}")
-        print(f"Breakouts: {breakouts}")
+    data = identify_levels(data)
+    trades = []
 
-    return
+    for i in range(20, len(data)):
+        if not is_consolidating(data.iloc[i-10:i]):
+            continue
+
+        current = data.iloc[i]
+        previous = data.iloc[i - 1]
+
+        breakout_up = current['Close'] > previous['Resistance']
+        breakout_down = current['Close'] < previous['Support']
+
+        if breakout_up:
+            entry = current['Close']
+            stop_loss = entry - (previous['Resistance'] - previous['Support']) * 0.5
+            take_profit = entry + (entry - stop_loss) * 1.5
+            trades.append({
+                'Time': current.name,
+                'Direction': 'BUY',
+                'Entry': round(entry, 2),
+                'StopLoss': round(stop_loss, 2),
+                'TakeProfit': round(take_profit, 2)
+            })
+
+        elif breakout_down:
+            entry = current['Close']
+            stop_loss = entry + (previous['Resistance'] - previous['Support']) * 0.5
+            take_profit = entry - (stop_loss - entry) * 1.5
+            trades.append({
+                'Time': current.name,
+                'Direction': 'SELL',
+                'Entry': round(entry, 2),
+                'StopLoss': round(stop_loss, 2),
+                'TakeProfit': round(take_profit, 2)
+            })
+
+    for index in selected_indices:
+        for trade in trades:
+            msg = (
+                f"🚨 *Breakout Detected* for *{index}* @ {trade['Time']}\n"
+                f"Direction: *{trade['Direction']}*\n"
+                f"Entry Price: `{trade['Entry']}`\n"
+                f"Stop Loss: `{trade['StopLoss']}`\n"
+                f"Take Profit: `{trade['TakeProfit']}`"
+            )
+            send_telegram_message(msg)
