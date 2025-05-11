@@ -1,5 +1,7 @@
 import requests
 import logging
+import random
+from datetime import datetime
 
 BOT_TOKEN = "7819951392:AAFkYd9-sblexjXNqgIfhbWAIC1Lr6NmPpo"
 CHAT_ID = "6734231237"
@@ -20,13 +22,15 @@ def send_telegram_message(message):
     except Exception as e:
         logging.error(f"Error sending message: {e}")
 
-# Send analysis results to Telegram
-def send_analysis_to_telegram(analysis_results):
-    for index, result in analysis_results.items():
-        message = f"📊 Analysis for {index}:\n"
-        message += f"Touches: {', '.join(map(str, result['Touches']))}\n"
-        message += f"Patterns: {', '.join(result['Patterns'])}\n"
-        message += f"Breakouts: {', '.join(map(str, result['Breakouts']))}\n"
-        
-        # Send the message to Telegram
-        send_telegram_message(message)
+# Generate sample signals for display
+def get_signal_list():
+    indices = ["R_10", "R_25", "R_50", "R_75", "R_100"]
+    actions = ["BUY", "SELL", "HOLD"]
+    signals = []
+
+    for index in indices:
+        action = random.choice(actions)
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        signals.append(f"{index} - {action} at {timestamp}")
+
+    return signals
