@@ -66,14 +66,21 @@ HTML_TEMPLATE = """
         .btn:hover {
             background: #ddd;
         }
+        .price {
+            color: #ffcc00;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>📊 Volatility Index Analyzer</h1>
         <form method="POST" action="/analyze">
-            {% for index in indices %}
-                <label><input type="checkbox" name="selected_indices" value="{{ index }}"> {{ index }}</label>
+            {% for index, price in indices %}
+                <label>
+                    <input type="checkbox" name="selected_indices" value="{{ index }}"> 
+                    {{ index }} - <span class="price">${{ price }}</span>
+                </label>
             {% endfor %}
             <button type="submit" class="btn">🚀 Start Analysis</button>
         </form>
@@ -84,7 +91,9 @@ HTML_TEMPLATE = """
 
 @app.route('/')
 def index():
-    return render_template_string(HTML_TEMPLATE, indices=VOLATILITY_INDICES)
+    # Fetch the indices along with their predicted prices
+    indices_with_prices = [(index, get_predicted_price(index)) for index in VOLATILITY_INDICES]
+    return render_template_string(HTML_TEMPLATE, indices=indices_with_prices)
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
@@ -96,6 +105,12 @@ def analyze():
     send_telegram_message(f"🟢 Starting analysis for: {', '.join(selected)}")
     analyze_selected_indices(selected)
     return redirect('/')
+
+def get_predicted_price(index):
+    # Dummy logic: Replace this with the actual logic to get the price
+    # For now, it returns a random price
+    import random
+    return round(random.uniform(100, 200), 2)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
