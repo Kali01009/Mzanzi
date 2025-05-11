@@ -1,116 +1,86 @@
-from flask import Flask, render_template_string, request, redirect
+import websocket
+import json
+import logging
+import time
+import threading
 from analyzer import analyze_selected_indices
-from main import send_telegram_message
+from datetime import datetime
 
-app = Flask(__name__)
+# Set up logging
+logging.basicConfig(level=logging.INFO)
 
-# List of volatility indices with proper names
-VOLATILITY_INDICES = [
-    "Volatility_10", "Volatility_25", "Volatility_50", "Volatility_75", "Volatility_100",
-    "Volatility_10_1s", "Volatility_25_1s", "Volatility_50_1s", "Volatility_75_1s", "Volatility_100_1s"
-]
+# Deriv WebSocket URL
+ws_url = "wss://ws.binaryws.com/websockets/v3?app_id=1089"  # Replace with your app_id if needed
 
-HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Volatility Signal Dashboard</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background: linear-gradient(to right, #6a11cb, #2575fc);
-            margin: 0;
-            padding: 0;
-            color: white;
-        }
-        .container {
-            max-width: 700px;
-            margin: 80px auto;
-            background: #ffffff0d;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 0 15px rgba(0,0,0,0.3);
-        }
-        h1 {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        form {
-            display: flex;
-            flex-direction: column;
-        }
-        label {
-            background: #ffffff1a;
-            padding: 10px;
-            margin: 8px 0;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-        }
-        input[type="checkbox"] {
-            margin-right: 10px;
-            transform: scale(1.3);
-        }
-        .btn {
-            background: #ffffff;
-            color: #2575fc;
-            border: none;
-            padding: 12px 20px;
-            margin-top: 25px;
-            font-size: 18px;
-            font-weight: bold;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background 0.3s ease;
-        }
-        .btn:hover {
-            background: #ddd;
-        }
-        .price {
-            color: #ffcc00;
-            font-weight: bold;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>📊 Volatility Index Analyzer</h1>
-        <form method="POST" action="/analyze">
-            {% for index, price in indices %}
-                <label>
-                    <input type="checkbox" name="selected_indices" value="{{ index }}"> 
-                    {{ index }} - <span class="price">${{ price }}</span>
-                </label>
-            {% endfor %}
-            <button type="submit" class="btn">🚀 Start Analysis</button>
-        </form>
-    </div>
-</body>
-</html>
-"""
+# Selected indices for analysis
+selected_indices = ["R_10", "R_25", "R_50", "R_75", "R_100"]  # Modify this list as per your requirement
 
-@app.route('/')
-def index():
-    # Fetch the indices along with their predicted prices
-    indices_with_prices = [(index, get_predicted_price(index)) for index in VOLATILITY_INDICES]
-    return render_template_string(HTML_TEMPLATE, indices=indices_with_prices)
+# This will hold the received market data
+market_data = []
 
-@app.route('/analyze', methods=['POST'])
-def analyze():
-    selected = request.form.getlist('selected_indices')
-    if not selected:
-        send_telegram_message("⚠️ No indices selected for analysis.")
-        return redirect('/')
-    
-    send_telegram_message(f"🟢 Starting analysis for: {', '.join(selected)}")
-    analyze_selected_indices(selected)
-    return redirect('/')
+def on_message(ws, message):
+    try:
+        data = json.loads(message)
+        logging.info(f"Received message: {data}")
+        
+        # Append the relevant market data (modify according to the API response format)
+        if "ticks" in data:
+            market_data.append(data['ticks'])
+            
+            # Analyze the data once new market data is received
+            analysis_results = analyze_selected_indices(selected_indices, market_data)
+            
+            # Optionally, you could display the analysis on the front-end here
+            
+            # Send results to Telegram
+            send_analysis_to_telegram(analysis_results)
+        
+    except Exception as e:
+        logging.error(f"Error processing message: {e}")
 
-def get_predicted_price(index):
-    # Dummy logic: Replace this with the actual logic to get the price
-    # For now, it returns a random price
-    import random
-    return round(random.uniform(100, 200), 2)
+def on_error(ws, error):
+    logging.error(f"WebSocket error: {error}")
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
+def on_close(ws, close_status_code, close_msg):
+    logging.info(f"WebSocket closed with code: {close_status_code}, message: {close_msg}")
+
+def on_open(ws):
+    logging.info("WebSocket connection established!")
+
+    # Example: Send a subscription message to start receiving market data (ticks)
+    subscribe_message = {
+        "ticks": "R_10",  # Example symbol for volatility index (can be changed)
+        "granularity": 60  # Granularity for the ticks (can be changed)
+    }
+
+    ws.send(json.dumps(subscribe_message))
+    logging.info(f"Sent subscription message: {subscribe_message}")
+
+def run_websocket():
+    ws = websocket.WebSocketApp(
+        ws_url,
+        on_open=on_open,
+        on_message=on_message,
+        on_error=on_error,
+        on_close=on_close
+    )
+
+    # Keep WebSocket connection alive
+    while True:
+        try:
+            ws.run_forever()
+        except Exception as e:
+            logging.error(f"WebSocket encountered an error: {e}")
+            time.sleep(5)  # Wait for 5 seconds before trying to reconnect
+
+# Start the WebSocket connection in a separate thread
+def start_ws_thread():
+    ws_thread = threading.Thread(target=run_websocket)
+    ws_thread.daemon = True
+    ws_thread.start()
+
+# Start WebSocket connection when the script runs
+if __name__ == "__main__":
+    start_ws_thread()
+    while True:
+        time.sleep(1)  # Keep the main thread alive
